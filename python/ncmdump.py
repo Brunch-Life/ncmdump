@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import base64
 import concurrent.futures
+import multiprocessing
 import json
 import os
 from pathlib import Path
@@ -245,7 +246,9 @@ def main():
         parser.error("No input files provided")
 
     worker_count = max(1, args.jobs)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=worker_count) as executor:
+    mp_context = multiprocessing.get_context("spawn")
+
+    with concurrent.futures.ProcessPoolExecutor(max_workers=worker_count, mp_context=mp_context) as executor:
         future_map = {
             executor.submit(process_file, path, args.output, args.remove, base): path
             for path, base in targets
