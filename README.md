@@ -71,7 +71,8 @@ ncmdump -d source_dir -o output_dir -r
 
 ### Python 版本
 
-仓库中新增了一个纯 Python 的解密脚本，便于在没有 C++ 构建环境的机器上快速处理文件。
+仓库中新增了一个纯 Python 的解密脚本，便于在没有 C++ 构建环境的机器上快速处理文件。脚本支持通过 `-j/--jobs` 参数开启多线程并发转换，默认使用 CPU 核心数。
+
 
 ```shell
 # 安装依赖
@@ -80,8 +81,8 @@ pip install -r requirements.txt
 # 处理单个或多个文件
 python python/ncmdump.py 1.ncm 2.ncm
 
-# 处理目录，支持递归、输出目录以及处理成功后删除源文件
-python python/ncmdump.py -d source_dir -r -o output_dir -m
+# 处理目录，支持递归、输出目录、并发线程数以及处理成功后删除源文件
+python python/ncmdump.py -d source_dir -r -o output_dir -m -j 8
 ```
 
 ### 动态库

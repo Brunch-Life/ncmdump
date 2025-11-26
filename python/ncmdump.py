@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import base64
+import concurrent.futures
 import json
+import os
 from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
 
@@ -198,16 +200,15 @@ def iter_ncm_files(directory: Path, recursive: bool) -> Iterable[Path]:
     yield from (p for p in directory.glob(pattern) if p.is_file())
 
 
-def process_targets(files: List[Path], output_dir: Optional[Path], remove_source: bool, base_dir: Optional[Path]):
-    for file_path in files:
-        ncm = NCMFile(file_path)
-        target = ncm.dump(output_dir=output_dir, base_dir=base_dir)
-        print(f"Converted {file_path} -> {target}")
-        if remove_source:
-            try:
-                file_path.unlink()
-            except OSError as exc:
-                print(f"Failed to remove {file_path}: {exc}")
+def process_file(file_path: Path, output_dir: Optional[Path], remove_source: bool, base_dir: Optional[Path]):
+    ncm = NCMFile(file_path)
+    target = ncm.dump(output_dir=output_dir, base_dir=base_dir)
+    if remove_source:
+        try:
+            file_path.unlink()
+        except OSError as exc:
+            print(f"Failed to remove {file_path}: {exc}")
+    return target
 
 
 def collect_files(args) -> List[Tuple[Path, Path]]:
@@ -229,6 +230,13 @@ def main():
     parser.add_argument("-r", "--recursive", action="store_true", help="Recursively search the directory")
     parser.add_argument("-o", "--output", type=Path, help="Output directory for converted files")
     parser.add_argument("-m", "--remove", action="store_true", help="Remove source files after successful conversion")
+    parser.add_argument(
+        "-j",
+        "--jobs",
+        type=int,
+        default=os.cpu_count() or 4,
+        help="Number of worker threads for concurrent conversions",
+    )
 
     args = parser.parse_args()
 
@@ -236,8 +244,19 @@ def main():
     if not targets:
         parser.error("No input files provided")
 
-    for path, base in targets:
-        process_targets([path], args.output, args.remove, base)
+    worker_count = max(1, args.jobs)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=worker_count) as executor:
+        future_map = {
+            executor.submit(process_file, path, args.output, args.remove, base): path
+            for path, base in targets
+        }
+        for future in concurrent.futures.as_completed(future_map):
+            source_path = future_map[future]
+            try:
+                target_path = future.result()
+                print(f"Converted {source_path} -> {target_path}")
+            except Exception as exc:
+                print(f"Failed to convert {source_path}: {exc}")
 
 
 if __name__ == "__main__":
