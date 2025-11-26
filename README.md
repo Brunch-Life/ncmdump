@@ -73,6 +73,7 @@ ncmdump -d source_dir -o output_dir -r
 
 仓库中新增了一个纯 Python 的解密脚本，便于在没有 C++ 构建环境的机器上快速处理文件。脚本支持通过 `-j/--jobs` 参数开启多线程并发转换，默认使用 CPU 核心数。
 
+
 ```shell
 # 安装依赖
 pip install -r requirements.txt
